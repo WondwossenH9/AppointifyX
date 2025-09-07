@@ -1,0 +1,178 @@
+name: Deploy AppointifyX
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  NODE_VERSION: '18'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm run test
+
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test
+
+      - name: Run backend linting
+        run: |
+          cd backend
+          npm run lint
+
+      - name: Run frontend linting
+        run: |
+          cd frontend
+          npm run lint
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm ci
+
+      - name: Build backend
+        run: |
+          cd backend
+          npm run build
+
+      - name: Package Lambda functions
+        run: |
+          cd backend
+          npm run zip
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            backend/dist/
+            backend/*.zip
+            frontend/out/
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Init
+        run: |
+          cd infra/environments/dev
+          terraform init
+
+      - name: Terraform Plan
+        run: |
+          cd infra/environments/dev
+          terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        run: |
+          cd infra/environments/dev
+          terraform apply -auto-approve tfplan
+
+      - name: Deploy Lambda functions
+        run: |
+          # Get Lambda deployment bucket from Terraform output
+          LAMBDA_BUCKET=$(cd infra/environments/dev && terraform output -raw lambda_deployments_bucket_name)
+          
+          # Upload Lambda packages
+          aws s3 cp backend/appointments-handler.zip s3://$LAMBDA_BUCKET/
+          
+          # Update Lambda function code
+          aws lambda update-function-code \
+            --function-name appointifyx-appointments-dev \
+            --s3-bucket $LAMBDA_BUCKET \
+            --s3-key appointments-handler.zip
+
+      - name: Deploy Frontend
+        run: |
+          # Get S3 bucket from Terraform output
+          S3_BUCKET=$(cd infra/environments/dev && terraform output -raw s3_bucket_name)
+          CLOUDFRONT_ID=$(cd infra/environments/dev && terraform output -raw cloudfront_distribution_id)
+          
+          # Upload frontend files
+          aws s3 sync frontend/out/ s3://$S3_BUCKET/ --delete
+          
+          # Invalidate CloudFront cache
+          aws cloudfront create-invalidation \
+            --distribution-id $CLOUDFRONT_ID \
+            --paths "/*"
+
+      - name: Update deployment status
+        run: |
+          echo "Deployment completed successfully!"
+          echo "Frontend URL: $(cd infra/environments/dev && terraform output -raw frontend_url)"
+          echo "API URL: $(cd infra/environments/dev && terraform output -raw api_url)"

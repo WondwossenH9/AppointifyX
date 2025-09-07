@@ -1,0 +1,54 @@
+{
+  "name": "appointifyx-backend",
+  "version": "1.0.0",
+  "description": "AppointifyX Backend - Multi-tenant appointment booking system",
+  "main": "index.js",
+  "scripts": {
+    "build": "npm run clean && npm run compile",
+    "clean": "rimraf dist",
+    "compile": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "package": "npm run build && npm run zip",
+    "zip": "cd dist && zip -r ../appointments-handler.zip . && cd ..",
+    "deploy": "npm run package && aws s3 cp appointments-handler.zip s3://your-lambda-deployments-bucket/"
+  },
+  "keywords": [
+    "serverless",
+    "lambda",
+    "appointments",
+    "multi-tenant",
+    "saas"
+  ],
+  "author": "AppointifyX Team",
+  "license": "MIT",
+  "dependencies": {
+    "aws-sdk": "^2.1490.0",
+    "aws-xray-sdk-core": "^3.5.1",
+    "aws-xray-sdk-express": "^3.5.1",
+    "jsonwebtoken": "^9.0.2",
+    "joi": "^17.11.0",
+    "uuid": "^9.0.1",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.130",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/jest": "^29.5.8",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "rimraf": "^5.0.5",
+    "ts-jest": "^29.1.1",
+    "typescript": "^5.3.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
