@@ -68,7 +68,7 @@ export class AppointmentService {
   ): Promise<Appointment | null> {
     try {
       const params: DynamoDB.DocumentClient.GetItemInput = {
-        TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+        TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
         Key: {
           PK: `TENANT#${tenantId}#APPOINTMENT#${appointmentId}`,
           SK: `APPOINTMENT#${appointmentId}`
@@ -107,7 +107,7 @@ export class AppointmentService {
       if (userRole === 'super-admin') {
         // Super admin can see all appointments for the tenant
         params = {
-          TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+          TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
           IndexName: 'GSI1',
           KeyConditionExpression: 'GSI1PK = :tenantId',
           ExpressionAttributeValues: {
@@ -117,7 +117,7 @@ export class AppointmentService {
       } else {
         // Regular users can only see their own appointments
         params = {
-          TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+          TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
           IndexName: 'GSI2',
           KeyConditionExpression: 'GSI2PK = :userKey',
           ExpressionAttributeValues: {
@@ -164,7 +164,7 @@ export class AppointmentService {
   async createAppointment(
     tenantId: string,
     userId: string,
-    userRole: string,
+    _userRole: string,
     appointmentData: any
   ): Promise<Appointment> {
     try {
@@ -198,7 +198,7 @@ export class AppointmentService {
       };
 
       const params: DynamoDB.DocumentClient.PutItemInput = {
-        TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+        TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
         Item: {
           PK: `TENANT#${tenantId}#APPOINTMENT#${appointmentId}`,
           SK: `APPOINTMENT#${appointmentId}`,
@@ -247,7 +247,7 @@ export class AppointmentService {
       }
 
       const now = new Date().toISOString();
-      const updatedAppointment = {
+      const _updatedAppointment = {
         ...existingAppointment,
         ...value,
         updatedAt: now
@@ -267,7 +267,7 @@ export class AppointmentService {
       });
 
       const params: DynamoDB.DocumentClient.UpdateItemInput = {
-        TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+        TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
         Key: {
           PK: `TENANT#${tenantId}#APPOINTMENT#${appointmentId}`,
           SK: `APPOINTMENT#${appointmentId}`
@@ -307,7 +307,7 @@ export class AppointmentService {
       }
 
       const params: DynamoDB.DocumentClient.DeleteItemInput = {
-        TableName: process.env.APPOINTMENTS_TABLE_NAME!,
+        TableName: process.env['APPOINTMENTS_TABLE_NAME']!,
         Key: {
           PK: `TENANT#${tenantId}#APPOINTMENT#${appointmentId}`,
           SK: `APPOINTMENT#${appointmentId}`

@@ -1,4 +1,4 @@
-import { CognitoIdentityProvider } from 'aws-sdk';
+import { CognitoIdentityServiceProvider } from 'aws-sdk';
 import jwt from 'jsonwebtoken';
 import { Logger } from '../utils/Logger';
 
@@ -11,11 +11,11 @@ export interface AuthResult {
 }
 
 export class AuthService {
-  private cognito: CognitoIdentityProvider;
+  private cognito: CognitoIdentityServiceProvider;
   private logger: Logger;
 
   constructor() {
-    this.cognito = new CognitoIdentityProvider();
+    this.cognito = new CognitoIdentityServiceProvider();
     this.logger = new Logger('AuthService');
   }
 
@@ -91,7 +91,7 @@ export class AuthService {
 
       // Check token expiration
       const now = Math.floor(Date.now() / 1000);
-      if (decoded.payload.exp && decoded.payload.exp < now) {
+      if (typeof decoded.payload === 'object' && decoded.payload && 'exp' in decoded.payload && decoded.payload.exp && decoded.payload.exp < now) {
         return null;
       }
 
@@ -135,7 +135,7 @@ export class AuthService {
   async getUserInfo(userId: string): Promise<any> {
     try {
       const params = {
-        UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+        UserPoolId: process.env['COGNITO_USER_POOL_ID']!,
         Username: userId
       };
 
@@ -180,7 +180,7 @@ export class AuthService {
   }): Promise<any> {
     try {
       const params = {
-        UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+        UserPoolId: process.env['COGNITO_USER_POOL_ID']!,
         Username: userData.email,
         UserAttributes: [
           {
@@ -221,7 +221,7 @@ export class AuthService {
       const groupName = this.getGroupNameForRole(role);
       
       const params = {
-        UserPoolId: process.env.COGNITO_USER_POOL_ID!,
+        UserPoolId: process.env['COGNITO_USER_POOL_ID']!,
         Username: username,
         GroupName: groupName
       };
